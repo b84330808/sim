@@ -6,7 +6,7 @@
 import { rmSync, type Stats } from 'node:fs'
 import { lstat, mkdir, readFile, realpath, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import { hostname } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, toNamespacedPath } from 'node:path'
 import { toRecord } from '@sim/utils/object'
 import { embedStore } from '../../../embed-context'
 import { SOURCE_BUSY_EXIT_CODE } from '../../../exit-codes'
@@ -206,16 +206,19 @@ export async function withSourceDirLock<T>(
   }
 }
 
-/** Removes `dir` and each parent up to `outermost`, stopping at the first that is not empty. */
+/**
+ * Removes `dir` and each parent up to `outermost`, stopping at the first that is not empty.
+ * Compared as namespaced paths: on Windows, `mkdir` reports the folder it created as `\\?\D:\…`.
+ */
 async function removeEmptyFolders(dir: string, outermost: string): Promise<void> {
-  const last = resolve(outermost)
+  const last = toNamespacedPath(resolve(outermost))
   for (let folder = dir; ; folder = dirname(folder)) {
     try {
       await rmdir(folder)
     } catch {
       return
     }
-    if (folder === last || dirname(folder) === folder) return
+    if (toNamespacedPath(folder) === last || dirname(folder) === folder) return
   }
 }
 
